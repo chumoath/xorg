@@ -642,21 +642,21 @@ ms_dirty_update(ScreenPtr screen, int *timeout)
     xorg_list_for_each_entry(ent, &screen->pixmap_dirty_list, ent) {
         region = DamageRegion(ent->damage);
         if (RegionNotEmpty(region)) {
-            if (!screen->isGPU) {
-                   msPixmapPrivPtr ppriv =
-                    msGetPixmapPriv(&ms->drmmode, ent->slave_dst->master_pixmap);
+            // if (!screen->isGPU) {
+            //        msPixmapPrivPtr ppriv =
+            //         msGetPixmapPriv(&ms->drmmode, ent->slave_dst->master_pixmap);
 
-                if (ppriv->notify_on_damage) {
-                    ppriv->notify_on_damage = FALSE;
+            //     if (ppriv->notify_on_damage) {
+            //         ppriv->notify_on_damage = FALSE;
 
-                    ent->slave_dst->drawable.pScreen->
-                        SharedPixmapNotifyDamage(ent->slave_dst);
-                }
+            //         ent->slave_dst->drawable.pScreen->
+            //             SharedPixmapNotifyDamage(ent->slave_dst);
+            //     }
 
-                /* Requested manual updating */
-                if (ppriv->defer_dirty_update)
-                    continue;
-            }
+            //     /* Requested manual updating */
+            //     if (ppriv->defer_dirty_update)
+            //         continue;
+            // }
 
             redisplay_dirty(screen, ent, timeout);
             DamageEmpty(ent->damage);
@@ -1040,6 +1040,9 @@ PreInit(ScrnInfoPtr pScrn, int flags)
 #endif
     }
 
+    pScrn->capabilities |= RR_Capability_SourceOutput;
+    pScrn->capabilities |= RR_Capability_SinkOutput;
+
     if (xf86ReturnOptValBool(ms->drmmode.Options, OPTION_ATOMIC, FALSE)) {
         ret = drmSetClientCap(ms->fd, DRM_CLIENT_CAP_ATOMIC, 1);
         ms->atomic_modeset = (ret == 0);
@@ -1406,10 +1409,12 @@ CreateScreenResources(ScreenPtr pScreen)
     if (dixPrivateKeyRegistered(rrPrivKey)) {
         rrScrPrivPtr pScrPriv = rrGetScrPriv(pScreen);
 
-        pScrPriv->rrEnableSharedPixmapFlipping = msEnableSharedPixmapFlipping;
-        pScrPriv->rrDisableSharedPixmapFlipping = msDisableSharedPixmapFlipping;
-
-        pScrPriv->rrStartFlippingPixmapTracking = msStartFlippingPixmapTracking;
+        // pScrPriv->rrEnableSharedPixmapFlipping = msEnableSharedPixmapFlipping;
+        // pScrPriv->rrDisableSharedPixmapFlipping = msDisableSharedPixmapFlipping;
+        // pScrPriv->rrStartFlippingPixmapTracking = msStartFlippingPixmapTracking;
+        pScrPriv->rrEnableSharedPixmapFlipping = NULL;
+        pScrPriv->rrDisableSharedPixmapFlipping = NULL;
+        pScrPriv->rrStartFlippingPixmapTracking = NULL;
     }
 
     return ret;
@@ -1431,12 +1436,13 @@ msSharePixmapBacking(PixmapPtr ppix, ScreenPtr screen, void **handle)
     int ret;
     CARD16 stride;
     CARD32 size;
-    ret = glamor_shareable_fd_from_pixmap(ppix->drawable.pScreen, ppix,
-                                          &stride, &size);
-    if (ret == -1)
-        return FALSE;
+    // ret = glamor_shareable_fd_from_pixmap(ppix->drawable.pScreen, ppix,
+                                        //   &stride, &size);
+    // if (ret == -1)
+        // return FALSE;
 
-    *handle = (void *)(long)(ret);
+    // *handle = (void *)(long)(ret);
+    *handle = (void *)(long)(0);
     return TRUE;
 #endif
     return FALSE;
@@ -1445,6 +1451,7 @@ msSharePixmapBacking(PixmapPtr ppix, ScreenPtr screen, void **handle)
 static Bool
 msSetSharedPixmapBacking(PixmapPtr ppix, void *fd_handle)
 {
+    ppix->master_pixmap = NULL;
 #ifdef GLAMOR_HAS_GBM
     ScreenPtr screen = ppix->drawable.pScreen;
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
@@ -1704,8 +1711,10 @@ ScreenInit(ScreenPtr pScreen, int argc, char **argv)
     pScreen->RequestSharedPixmapNotifyDamage =
         msRequestSharedPixmapNotifyDamage;
 
-    pScreen->PresentSharedPixmap = msPresentSharedPixmap;
-    pScreen->StopFlippingPixmapTracking = msStopFlippingPixmapTracking;
+    pScreen->PresentSharedPixmap = NULL;
+    pScreen->StopFlippingPixmapTracking = NULL;
+    // pScreen->PresentSharedPixmap = msPresentSharedPixmap;
+    // pScreen->StopFlippingPixmapTracking = msStopFlippingPixmapTracking;
 
     if (!xf86CrtcScreenInit(pScreen))
         return FALSE;
@@ -1757,7 +1766,8 @@ ScreenInit(ScreenPtr pScreen, int argc, char **argv)
             drmVersionPtr version;
 
             /* enable if we are an accelerated GPU screen */
-            ms->drmmode.reverse_prime_offload_mode = TRUE;
+            // ms->drmmode.reverse_prime_offload_mode = TRUE;
+            ms->drmmode.reverse_prime_offload_mode = FALSE;
 
             /* disable if we detect i915 */
             if ((version = drmGetVersion(ms->drmmode.fd))) {

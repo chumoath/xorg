@@ -235,14 +235,25 @@ fbCopyNto1(DrawablePtr pSrcDrawable,
     }
 }
 
+typedef RegionPtr (*copyAreaFunc)(DrawablePtr pSrc, DrawablePtr pDst, GCPtr pGC,
+            int srcx, int srcy, int w, int h, int dstx, int dsty);
+
 RegionPtr
 fbCopyArea(DrawablePtr pSrcDrawable,
            DrawablePtr pDstDrawable,
            GCPtr pGC,
            int xIn, int yIn, int widthSrc, int heightSrc, int xOut, int yOut)
 {
-    return miDoCopy(pSrcDrawable, pDstDrawable, pGC, xIn, yIn,
+    if (pDstDrawable->pScreen->myNum == 256) {
+        copyAreaFunc func = (copyAreaFunc)(pDstDrawable->pScreen->DPMS);
+        RegionPtr tmp_ret = miDoCopy(pSrcDrawable, pDstDrawable, pGC, xIn, yIn,
                     widthSrc, heightSrc, xOut, yOut, fbCopyNtoN, 0, 0);
+        if (func) func(pSrcDrawable, pDstDrawable, pGC, xIn, yIn, widthSrc, heightSrc, xOut, yOut);
+        return tmp_ret;
+    } else {
+        return miDoCopy(pSrcDrawable, pDstDrawable, pGC, xIn, yIn,
+                        widthSrc, heightSrc, xOut, yOut, fbCopyNtoN, 0, 0);
+    }
 }
 
 RegionPtr

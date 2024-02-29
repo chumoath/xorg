@@ -120,6 +120,8 @@ dumb_bo_destroy(int fd, struct dumb_bo *bo)
 struct dumb_bo *
 dumb_get_bo_from_fd(int fd, int handle, int pitch, int size)
 {
+    return dumb_bo_create(fd, pitch / 4, size / pitch, 32);
+    #if 0
     struct dumb_bo *bo;
     int ret;
 
@@ -135,4 +137,5 @@ dumb_get_bo_from_fd(int fd, int handle, int pitch, int size)
     bo->pitch = pitch;
     bo->size = size;
     return bo;
+    #endif
 }
